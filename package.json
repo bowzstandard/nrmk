@@ -1,0 +1,32 @@
+{
+  "name": "@bowzstandard/nrmk",
+  "version": "0.0.1",
+  "description": "typed redis wrapper",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bowzstandard/nrmk.git"
+  },
+  "keywords": [
+    "redis",
+    "node.js"
+  ],
+  "author": "bowzstandard",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bowzstandard/nrmk/issues"
+  },
+  "homepage": "https://github.com/bowzstandard/nrmk#readme",
+  "devDependencies": {
+    "lerna": "^6.6.2"
+  },
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ],
+    "nohoist": []
+  }
+}
