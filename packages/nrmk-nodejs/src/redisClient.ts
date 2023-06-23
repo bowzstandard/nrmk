@@ -1,9 +1,10 @@
 import { createClient } from 'redis';
 
-type NrmkRedisClientType = {
+type NrmkRedisClientType<U> = {
   keyName: string;
   keyType: 'hash' | 'pubsub';
   redisClient: ReturnType<typeof createClient>;
+  originalRef: U;
 };
 
 type NrmkRedisFieldType = { [key: string]: any };
@@ -15,31 +16,29 @@ export class NrmkRedisClient<U extends NrmkRedisFieldType> {
   private _redisClient: ReturnType<typeof createClient>;
   private _redisClientForSub?: ReturnType<typeof createClient>;
   private _keyType: 'hash' | 'pubsub';
+  private _originalRef: U;
 
-  constructor(data: NrmkRedisClientType) {
-    this._keyName = data.keyName;
-    this._redisClient = data.redisClient;
-    this._keyType = data.keyType;
+  constructor({
+    keyName,
+    keyType,
+    originalRef,
+    redisClient,
+  }: NrmkRedisClientType<U>) {
+    this._keyName = keyName;
+    this._redisClient = redisClient;
+    this._keyType = keyType;
+    this._originalRef = originalRef;
   }
 
-  validateStrictly(ref: U | Partial<U>, parsed: any): parsed is U {
-    return Reflect.ownKeys(ref).every((item: string | symbol) =>
-      Reflect.has(parsed, item)
-    );
-  }
-
-  private _isValidOuterTypedCacheData(
-    ref: Partial<U>,
-    parsed: any
-  ): parsed is Partial<U> {
+  private _isValidTypedCacheData(parsed: any): parsed is Partial<U> {
     return Reflect.ownKeys(parsed).every((item: string | symbol) =>
-      Reflect.has(ref, item)
+      Reflect.has(this._originalRef, item)
     );
   }
 
-  private _parseTypedJson(ref: Partial<U>, data: string): Partial<U> {
+  private _parseTypedJson(data: string): Partial<U> {
     const parsed = JSON.parse(data);
-    if (this._isValidOuterTypedCacheData(ref, parsed)) {
+    if (this._isValidTypedCacheData(parsed)) {
       return parsed;
     }
     throw new Error(`parsed json is invalid type format: ${parsed}`);
@@ -61,35 +60,35 @@ export class NrmkRedisClient<U extends NrmkRedisFieldType> {
     await this._redisClientForSub.disconnect();
   }
 
-  async hSetTypedJson(ref: Partial<U>) {
+  async hSetTypedJson(data: Partial<U>) {
     if (this._keyType !== 'hash') {
       throw new Error(`${this._keyType} is wrong keyType for hSet`);
     }
-    await this._redisClient.hSet(this._keyName, ref as NrmkRedisFieldType);
+    await this._redisClient.hSet(this._keyName, data as NrmkRedisFieldType);
   }
 
-  async hGetAllTypedJson(ref: Partial<U>): Promise<void> {
+  async hGetAllTypedJson(): Promise<Partial<U>> {
     if (this._keyType !== 'hash') {
       throw new Error(`${this._keyType} is wrong keyType for hGetAll`);
     }
     const result = await this._redisClient.hGetAll(this._keyName);
 
-    if (!this._isValidOuterTypedCacheData(ref, result)) {
+    if (!this._isValidTypedCacheData(result)) {
       throw new Error(
         `hGetAll json is invalid type format: ${JSON.stringify(result)}`
       );
     }
-    ref = Object.assign(ref, result);
+    return result;
   }
 
-  async publishTypedJson(ref: Partial<U>) {
+  async publishTypedJson(data: Partial<U>) {
     if (this._keyType !== 'pubsub') {
       throw new Error(`${this._keyType} is wrong keyType for pub`);
     }
-    await this._redisClient.publish(this._keyName, JSON.stringify(ref));
+    await this._redisClient.publish(this._keyName, JSON.stringify(data));
   }
 
-  async subscribeTypedJson(ref: Partial<U>) {
+  async subscribeTypedJson(callback: (data: Partial<U>) => void) {
     if (this._keyType !== 'pubsub') {
       throw new Error(`${this._keyType} is wrong keyType for sub`);
     }
@@ -97,8 +96,8 @@ export class NrmkRedisClient<U extends NrmkRedisFieldType> {
     // NOTE: subscribeはクライアントに繋ぎっぱなしの状態を維持する必要があるので別のクライアントで対応。内部的に保持してunsubscribeで剥がせるようにする
     await this._redisClientForSub.connect();
     await this._redisClientForSub.subscribe(this._keyName, (message) => {
-      const result = this._parseTypedJson(ref, message);
-      ref = Object.assign(ref, result);
+      const result = this._parseTypedJson(message);
+      callback(result);
     });
   }
 }

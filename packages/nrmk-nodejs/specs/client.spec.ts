@@ -24,35 +24,40 @@ describe('NrmkRedisClient', () => {
       keyName: 'testKey',
       redisClient,
       keyType: 'hash',
+      originalRef: {
+        name: 'bob',
+        age: 20,
+        active: false,
+        from: '',
+      },
     });
     await client.hSetTypedJson({
       name: 'henry',
     });
-    const ref = {
-      name: 'bob',
-      age: 20,
-    };
-    await client.hGetAllTypedJson(ref);
-    expect(ref).toEqual({ name: 'henry', age: 20 });
+    const result = await client.hGetAllTypedJson();
+    expect(result).toEqual({ name: 'henry' });
   });
   test('pub value equal sub value at keyType pubsub', async () => {
     const client = new NrmkRedisClient<ExampleType>({
       keyName: 'testKey2',
       redisClient,
       keyType: 'pubsub',
+      originalRef: {
+        name: 'bob',
+        age: 20,
+        active: false,
+        from: '',
+      },
     });
-    const ref = {
-      name: 'bob',
-      age: 20,
-    };
-    await client.subscribeTypedJson(ref);
+    await client.subscribeTypedJson(async (data) => {
+      // NOTE: publishされてからsubscribeするまでのラグを考慮してsleep入れている
+      await setTimeout(1000);
+      expect(data).toEqual({ name: 'henry' });
+      await client.unsubscribe();
+    });
     await client.publishTypedJson({
       name: 'henry',
     });
-    // NOTE: publishされてからsubscribeするまでのラグを考慮してsleep入れている
-    await setTimeout(1000);
-    expect(ref).toEqual({ name: 'henry', age: 20 });
-    await client.unsubscribe();
   });
 
   test('wrong keyType at hash throw error', async () => {
@@ -60,33 +65,41 @@ describe('NrmkRedisClient', () => {
       keyName: 'testKey3',
       redisClient,
       keyType: 'pubsub',
+      originalRef: {
+        name: 'bob',
+        age: 20,
+        active: false,
+        from: '',
+      },
     });
     expect(() =>
       client.hSetTypedJson({
         name: 'bob',
       })
     ).rejects.toThrow('pubsub is wrong keyType for hSet');
-    expect(() =>
-      client.hGetAllTypedJson({
-        name: 'bob',
-      })
-    ).rejects.toThrow('pubsub is wrong keyType for hGetAll');
+    expect(() => client.hGetAllTypedJson()).rejects.toThrow(
+      'pubsub is wrong keyType for hGetAll'
+    );
   });
   test('wrong keyType at pubsub throw error', async () => {
     const client = new NrmkRedisClient<ExampleType>({
       keyName: 'testKey4',
       redisClient,
       keyType: 'hash',
+      originalRef: {
+        name: 'bob',
+        age: 20,
+        active: false,
+        from: '',
+      },
     });
     expect(() =>
       client.publishTypedJson({
         name: 'bob',
       })
     ).rejects.toThrow('hash is wrong keyType for pub');
-    expect(() =>
-      client.subscribeTypedJson({
-        name: 'bob',
-      })
-    ).rejects.toThrow('hash is wrong keyType for sub');
+    expect(() => client.subscribeTypedJson(() => {})).rejects.toThrow(
+      'hash is wrong keyType for sub'
+    );
   });
 });
