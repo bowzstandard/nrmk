@@ -22,15 +22,24 @@ export class NrmkRedisClient<U extends NrmkRedisFieldType> {
     this._keyType = data.keyType;
   }
 
-  private _isValidTypedCacheData(ref: U, parsed: any): parsed is U {
+  validateStrictly(ref: U | Partial<U>, parsed: any): parsed is U {
     return Reflect.ownKeys(ref).every((item: string | symbol) =>
       Reflect.has(parsed, item)
     );
   }
 
-  private _parseTypedJson(ref: U, data: string): U {
+  private _isValidOuterTypedCacheData(
+    ref: Partial<U>,
+    parsed: any
+  ): parsed is Partial<U> {
+    return Reflect.ownKeys(parsed).every((item: string | symbol) =>
+      Reflect.has(ref, item)
+    );
+  }
+
+  private _parseTypedJson(ref: Partial<U>, data: string): Partial<U> {
     const parsed = JSON.parse(data);
-    if (this._isValidTypedCacheData(ref, parsed)) {
+    if (this._isValidOuterTypedCacheData(ref, parsed)) {
       return parsed;
     }
     throw new Error(`parsed json is invalid type format: ${parsed}`);
@@ -52,37 +61,35 @@ export class NrmkRedisClient<U extends NrmkRedisFieldType> {
     await this._redisClientForSub.disconnect();
   }
 
-  async hSetTypedJson(ref: U) {
+  async hSetTypedJson(ref: Partial<U>) {
     if (this._keyType !== 'hash') {
       throw new Error(`${this._keyType} is wrong keyType for hSet`);
     }
-    await this._redisClient.hSet(this._keyName, ref);
+    await this._redisClient.hSet(this._keyName, ref as NrmkRedisFieldType);
   }
 
-  async hGetAllTypedJson(ref: U) {
+  async hGetAllTypedJson(ref: Partial<U>): Promise<void> {
     if (this._keyType !== 'hash') {
       throw new Error(`${this._keyType} is wrong keyType for hGetAll`);
     }
     const result = await this._redisClient.hGetAll(this._keyName);
 
-    if (this._isValidTypedCacheData(ref, result)) {
-      ref = Object.assign(ref, result);
-      return;
+    if (!this._isValidOuterTypedCacheData(ref, result)) {
+      throw new Error(
+        `hGetAll json is invalid type format: ${JSON.stringify(result)}`
+      );
     }
-
-    throw new Error(
-      `hGetAll json is invalid type format: ${JSON.stringify(result)}`
-    );
+    ref = Object.assign(ref, result);
   }
 
-  async publishTypedJson(ref: U) {
+  async publishTypedJson(ref: Partial<U>) {
     if (this._keyType !== 'pubsub') {
       throw new Error(`${this._keyType} is wrong keyType for pub`);
     }
     await this._redisClient.publish(this._keyName, JSON.stringify(ref));
   }
 
-  async subscribeTypedJson(ref: U) {
+  async subscribeTypedJson(ref: Partial<U>) {
     if (this._keyType !== 'pubsub') {
       throw new Error(`${this._keyType} is wrong keyType for sub`);
     }
