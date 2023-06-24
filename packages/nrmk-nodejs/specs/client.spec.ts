@@ -102,4 +102,23 @@ describe('NrmkRedisClient', () => {
       'hash is wrong keyType for sub'
     );
   });
+  test('flushAll', async () => {
+    const client = new NrmkRedisClient<ExampleType>({
+      keyName: 'testKey',
+      redisClient,
+      keyType: 'hash',
+      originalRef: {
+        name: 'bob',
+        age: 20,
+        active: false,
+        from: '',
+      },
+    });
+    await client.hSetTypedJson({
+      name: 'henry',
+    });
+    await client.flushAll();
+    const result = await client.hGetAllTypedJson();
+    expect(result).toEqual({});
+  });
 });

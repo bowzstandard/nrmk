@@ -1,4 +1,4 @@
-import { createClient } from 'redis';
+import { RedisFlushModes, createClient } from 'redis';
 
 type NrmkRedisClientType<U> = {
   keyName: string;
@@ -79,6 +79,10 @@ export class NrmkRedisClient<U extends NrmkRedisFieldType> {
       );
     }
     return result;
+  }
+
+  async flushAll(mode?: RedisFlushModes): Promise<void> {
+    await this._redisClient.flushAll(mode);
   }
 
   async publishTypedJson(data: Partial<U>) {
