@@ -1,6 +1,6 @@
 {
   "name": "@bowzstandard/nrmk-nodejs",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "typed redis wrapper",
   "module": "./dist/index.js",
   "typings": "./dist/index.d.ts",
@@ -21,9 +21,6 @@
     "redis",
     "node.js"
   ],
-  "dependencies": {
-    "redis": "^4.6.7"
-  },
   "devDependencies": {
     "@types/jest": "^29.5.2",
     "jest": "^29.5.0",
