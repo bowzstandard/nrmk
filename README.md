@@ -2,12 +2,4 @@
 
 typed I/O wrapper for redis
 
-## install
-
-```
-yarn add @bowzstandard/nrmk-nodejs
-```
-
-## usage
-
-WIP
+See: [nrmk-nodejs](https://github.com/bowzstandard/nrmk/tree/main/packages/nrmk-nodejs)
